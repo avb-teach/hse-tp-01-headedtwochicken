@@ -1,15 +1,17 @@
 #!/bin/bash
-# источник парсинга аргументов: https://www.geeksforgeeks.org/how-to-pass-and-parse-linux-bash-script-arguments-and-parameters/  
+# источник: https://www.geeksforgeeks.org/how-to-pass-and-parse-linux-bash-script-arguments-and-parameters/ 
 if [ "$#" -lt 2 ]; then
     echo "Usage: $0 [--max_depth N] <input_dir> <output_dir>"
     exit 1
 fi
 
-max_depth=9999
+has_max=false
+max_depth=0
 args=()
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --max_depth)
+      has_max=true
       max_depth="$2"
       shift 2
       ;;
@@ -19,6 +21,7 @@ while [ "$#" -gt 0 ]; do
       ;;
   esac
 done
+
 input_dir="${args[0]}"
 output_dir="${args[1]}"
 
@@ -29,35 +32,47 @@ fi
 mkdir -p "$output_dir"
 
 rename_if_exists() {
-    local fileName="$1" dir="$2" count=1
-    local base="${fileName%.*}" ext="${fileName##*.}"
-    # источник: https://askubuntu.com/questions/538913/how-can-i-copy-files-with-duplicate-filenames-into-one-directory-and-retain-both  
-    while [ -e "$dir/$fileName" ]; do
-        fileName="${base}${count}.${ext}"
+    local fname="$1" dir="$2" count=1
+    local base="${fname%.*}" ext="${fname##*.}"
+    # источник: https://askubuntu.com/questions/538913/how-can-i-copy-files-with-duplicate-filenames-into-one-directory-and-retain-both 
+    while [ -e "$dir/$fname" ]; do
+        fname="${base}${count}.${ext}"
         count=$((count + 1))
     done
-    echo "$fileName"
+    echo "$fname"
 }
 
 find "$input_dir" -type f | while read -r file; do
-    rel="${file#$input_dir/}"
-    IFS='/' read -r -a parts <<< "$rel"
-    fileName="${parts[-1]}"
-    dir_count=$(( ${#parts[@]} - 1 ))
-    
-    if (( dir_count == 0 )); then
-        subpath=""
-    elif (( dir_count <= max_depth )); then
-        subpath="${rel%/*}"
+    if [ "$has_max" = true ]; then
+        rel="${file#$input_dir/}"
+        IFS='/' read -ra parts <<< "$rel"
+        fileName="${parts[-1]}"
+        dir_count=$(( ${#parts[@]} - 1 ))
+
+        if (( dir_count > 0 )); then
+            start=$(( dir_count - max_depth ))
+            (( start < 0 )) && start=0
+            subdirs=()
+            for ((i=start; i<dir_count; i++)); do
+                subdirs+=("${parts[i]}")
+            done
+            subpath=$(IFS=/; echo "${subdirs[*]}")
+        else
+            subpath=""
+        fi
+
+        dest_dir="$output_dir/$subpath"
     else
-        start=$(( dir_count - max_depth ))
-        subpath="${parts[@]:start:max_depth}"
-        subpath="${subpath// /\/}"
+        fileName=$(basename "$file")
+        dest_dir="$output_dir"
     fi
 
-    dest_dir="$output_dir/$subpath"
     mkdir -p "$dest_dir"
-
-    newName=$(rename_if_exists "$fileName" "$dest_dir")
+    if [ "$has_max" = true ]; then
+        fname="$fileName"
+    else
+        fname=$(basename "$file")
+    fi
+    newName=$(rename_if_exists "$fname" "$dest_dir")
     cp "$file" "$dest_dir/$newName"
 done
