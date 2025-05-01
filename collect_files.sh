@@ -6,12 +6,24 @@ if [ "$#" -lt 2 ]; then
 fi
 
 max_depth=9999
-if [ "$1" == "--max_depth" ]; then
-    max_depth="$2"
-    shift 2
-fi
-input_dir="$1"
-output_dir="$2"
+args=()
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --max_depth)
+      max_depth="$2"
+      shift 2
+      ;;
+    *)
+      args+=("$1")
+      shift
+      ;;
+  esac
+done
+# источник: https://linuxize.com/post/bash-case-statement/  
+
+input_dir="${args[0]}"
+output_dir="${args[1]}"
+
 
 if [ ! -d "$input_dir" ]; then
     echo "Error: input directory doesn't exist"
