@@ -1,16 +1,15 @@
 #!/bin/bash
+
 if [ "$#" -lt 2 ]; then
     echo "Usage: $0 [--max_depth N] <input_dir> <output_dir>"
     exit 1
 fi
 
-has_max=false
-max_depth=0
+max_depth=9999
 args=()
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --max_depth)
-      has_max=true
       max_depth="$2"
       shift 2
       ;;
@@ -31,13 +30,18 @@ fi
 mkdir -p "$output_dir"
 
 rename_if_exists() {
-    local fname="$1" dir="$2" count=1
-    local base="${fname%.*}" ext="${fname##*.}"
-    while [ -e "$dir/$fname" ]; do
-        fname="${base}${count}.${ext}"
+    local fileName="$1" dir="$2" count=1
+    local base="${fileName%.*}" ext="${fileName##*.}"
+    if [[ "$base" == "$ext" ]]; then
+        ext=""
+    else
+        ext=".$ext"
+    fi
+    while [ -e "$dir/$fileName" ]; do
+        fileName="${base}${count}${ext}"
         count=$((count + 1))
     done
-    echo "$fname"
+    echo "$fileName"
 }
 
 find "$input_dir" -type f | while read -r file; do
@@ -46,23 +50,5 @@ find "$input_dir" -type f | while read -r file; do
     fileName="${parts[-1]}"
     dir_count=$(( ${#parts[@]} - 1 ))
 
-    if [ "$has_max" = true ] && [ "$max_depth" -gt 0 ]; then
-        depth_to_keep=$max_depth
-        if [ "$dir_count" -lt "$max_depth" ]; then
-            depth_to_keep=$dir_count
-        fi
-        subdirs=()
-        for ((i=0; i<depth_to_keep; i++)); do
-            subdirs+=("${parts[i]}")
-        done
-        subpath=$(IFS=/; echo "${subdirs[*]}")
-        dest_dir="$output_dir/$subpath"
-    else
-        dest_dir="$output_dir"
-    fi
-
-    mkdir -p "$dest_dir"
-    fname="$fileName"
-    newName=$(rename_if_exists "$fname" "$dest_dir")
-    cp "$file" "$dest_dir/$newName"
-done
+    if (( dir_count > max_depth )); then
+        start=$(( dir_count_
