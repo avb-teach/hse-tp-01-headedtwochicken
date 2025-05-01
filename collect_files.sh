@@ -43,7 +43,13 @@ rename_if_exists() {
 }
 
 # источник: https://www.baeldung.com/linux/flattening-nested-directory  
-find "$input_dir" -type f -mindepth 1 -maxdepth "$max_depth" | while read -r file; do
+find "$input_dir" -type f | while read -r file; do
+    rel_path="${file#$input_dir/}"
+    depth=$(awk -F/ '{print NF}' <<< "$rel_path")
+    if (( depth > max_depth )); then
+        continue
+    fi
+
     # источник: https://stackoverflow.com/questions/33469292/how-do-i-flatten-a-single-level-of-directories-in-a-shell-command  
     name=$(basename "$file")
 
