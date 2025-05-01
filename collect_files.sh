@@ -45,7 +45,8 @@ rename_if_exists() {
 # источник: https://www.baeldung.com/linux/flattening-nested-directory  
 find "$input_dir" -type f | while read -r file; do
     rel_path="${file#$input_dir/}"
-    depth=$(awk -F/ '{print NF}' <<< "$rel_path")
+    dir_path=$(dirname "$rel_path")
+    depth=$(grep -o "/" <<< "$dir_path" | wc -l)
     if (( depth > max_depth )); then
         continue
     fi
