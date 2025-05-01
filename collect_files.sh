@@ -1,5 +1,4 @@
 #!/bin/bash
-# источник: https://www.geeksforgeeks.org/how-to-pass-and-parse-linux-bash-script-arguments-and-parameters/ 
 if [ "$#" -lt 2 ]; then
     echo "Usage: $0 [--max_depth N] <input_dir> <output_dir>"
     exit 1
@@ -34,7 +33,6 @@ mkdir -p "$output_dir"
 rename_if_exists() {
     local fname="$1" dir="$2" count=1
     local base="${fname%.*}" ext="${fname##*.}"
-    # источник: https://askubuntu.com/questions/538913/how-can-i-copy-files-with-duplicate-filenames-into-one-directory-and-retain-both 
     while [ -e "$dir/$fname" ]; do
         fname="${base}${count}.${ext}"
         count=$((count + 1))
@@ -43,36 +41,28 @@ rename_if_exists() {
 }
 
 find "$input_dir" -type f | while read -r file; do
-    if [ "$has_max" = true ]; then
-        rel="${file#$input_dir/}"
-        IFS='/' read -ra parts <<< "$rel"
-        fileName="${parts[-1]}"
-        dir_count=$(( ${#parts[@]} - 1 ))
+    rel="${file#$input_dir/}"
+    IFS='/' read -ra parts <<< "$rel"
+    fileName="${parts[-1]}"
+    dir_count=$(( ${#parts[@]} - 1 ))
 
-        if (( dir_count > 0 )); then
-            start=$(( dir_count - max_depth ))
-            (( start < 0 )) && start=0
-            subdirs=()
-            for ((i=start; i<dir_count; i++)); do
-                subdirs+=("${parts[i]}")
-            done
-            subpath=$(IFS=/; echo "${subdirs[*]}")
-        else
-            subpath=""
+    if [ "$has_max" = true ] && [ "$max_depth" -gt 0 ]; then
+        depth_to_keep=$max_depth
+        if [ "$dir_count" -lt "$max_depth" ]; then
+            depth_to_keep=$dir_count
         fi
-
+        subdirs=()
+        for ((i=0; i<depth_to_keep; i++)); do
+            subdirs+=("${parts[i]}")
+        done
+        subpath=$(IFS=/; echo "${subdirs[*]}")
         dest_dir="$output_dir/$subpath"
     else
-        fileName=$(basename "$file")
         dest_dir="$output_dir"
     fi
 
     mkdir -p "$dest_dir"
-    if [ "$has_max" = true ]; then
-        fname="$fileName"
-    else
-        fname=$(basename "$file")
-    fi
+    fname="$fileName"
     newName=$(rename_if_exists "$fname" "$dest_dir")
     cp "$file" "$dest_dir/$newName"
 done
