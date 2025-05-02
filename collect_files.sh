@@ -1,54 +1,53 @@
 #!/bin/bash
 
-if [ "$#" -lt 2 ]; then
-    echo "Usage: $0 [--max_depth N] <input_dir> <output_dir>"
-    exit 1
+input_dir="$1"
+output_dir="$2"
+max_depth=""
+depth_limit=0
+
+if [[ -z "$input_dir" || -z "$output_dir" ]]; then
+  echo "Usage: ./collect_files.sh input_dir output_dir [--max_depth N]"
+  exit 1
 fi
 
-max_depth=9999
-args=()
-while [ "$#" -gt 0 ]; do
-  case "$1" in
-    --max_depth)
-      max_depth="$2"
-      shift 2
-      ;;
-    *)
-      args+=("$1")
-      shift
-      ;;
-  esac
-done
-
-input_dir="${args[0]}"
-output_dir="${args[1]}"
-
-if [ ! -d "$input_dir" ]; then
-    echo "Error: input directory doesn't exist"
-    exit 1
+if [[ "$3" == "--max_depth" && "$4" =~ ^[0-9]+$ ]]; then
+  max_depth="$4"
+  depth_limit=1
 fi
+
 mkdir -p "$output_dir"
+declare -A name_count
 
-rename_if_exists() {
-    local fileName="$1" dir="$2" count=1
-    local base="${fileName%.*}" ext="${fileName##*.}"
-    if [[ "$base" == "$ext" ]]; then
-        ext=""
-    else
-        ext=".$ext"
+collect_files() {
+  local current_dir="$1"
+  local current_depth="$2"
+
+  if [[ -n "$max_depth" && "$current_depth" -gt "$max_depth" ]]; then
+    return
+  fi
+
+  for path in "$current_dir"/*; do
+    if [[ -f "$path" ]]; then
+      filename=$(basename "$path")
+      count=${name_count["$filename"]}
+      if [[ -z "$count" ]]; then
+        cp "$path" "$output_dir/$filename"
+        name_count["$filename"]=1
+      else
+        name="${filename%.*}"
+        ext="${filename##*.}"
+        if [[ "$filename" == "$ext" ]]; then
+          newname="${name}${count}"
+        else
+          newname="${name}${count}.${ext}"
+        fi
+        cp "$path" "$output_dir/$newname"
+        ((name_count["$filename"]++))
+      fi
+    elif [[ -d "$path" ]]; then
+      collect_files "$path" $((current_depth + 1))
     fi
-    while [ -e "$dir/$fileName" ]; do
-        fileName="${base}${count}${ext}"
-        count=$((count + 1))
-    done
-    echo "$fileName"
+  done
 }
 
-find "$input_dir" -type f | while read -r file; do
-    rel="${file#$input_dir/}"
-    IFS='/' read -ra parts <<< "$rel"
-    fileName="${parts[-1]}"
-    dir_count=$(( ${#parts[@]} - 1 ))
-
-    if (( dir_count > max_depth )); then
-        start=$(( dir_count_
+collect_files "$input_dir" 1
